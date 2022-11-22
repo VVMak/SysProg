@@ -24,6 +24,8 @@ class ActionStorage {
   using TimePoint = std::chrono::time_point<std::chrono::steady_clock>;
   using FilesUsages = std::unordered_map<std::string, TimePoint>;
   using DirsUsages = std::unordered_map<std::string, FilesUsages>; 
+  // Для каждого PID, директории, файла, храним последнее время изменения соотв. файла
+  // Т.е. снаружи мапа из PID, внутри мапа из директорий, ещё внутри из файла в time_point
   std::unordered_map<int, DirsUsages> pids_actions_;
   std::unordered_set<int> banned_pids_;
 
@@ -59,9 +61,11 @@ bool ActionStorage::Check(int pid) {
 
 void ActionStorage::TruncateTimeQueue(int pid, const std::string& path, const TimePoint& tp) {
   auto file_usages = pids_actions_[pid][path];
-  for (auto it = file_usages.begin(); it != file_usages.end(); ++it) {
+  for (auto it = file_usages.begin(); it != file_usages.end();) {
     if (tp - it->second > CHECKING_INTERVAL) {
-      file_usages.erase(it);
+      it = file_usages.erase(it);
+    } else {
+      ++it;
     }
   }
   if (file_usages.empty()) {
