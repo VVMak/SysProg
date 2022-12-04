@@ -6,7 +6,6 @@
 #include <tables/utils.hpp>
 
 constexpr char SQL_CREATE[] = \
-"DROP TABLE files;"\
 "CREATE TABLE IF NOT EXISTS files ("\
 " id INTEGER PRIMARY KEY,"\
 " path TEXT NOT NULL UNIQUE"\

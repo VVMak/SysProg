@@ -27,11 +27,10 @@ sqlite3* CreateConnection(const std::string& path) {
 
 Database::Database(const std::string& path)
     : conn_(CreateConnection(path))
+    , files_(std::make_unique<FilesTable>(conn_))
     , actions_(std::make_unique<ActionsTable>(conn_))
     , files_content_(std::make_unique<FilesContentTable>(conn_))
-    , files_hash_(std::make_unique<FilesHashTable>(conn_))
-    , blacklist_(std::make_shared<FileList>(std::make_unique<BlackListTable>(conn_), shared_from_this()))
-    , whitelist_(std::make_shared<FileList>(std::make_unique<WhiteListTable>(conn_), shared_from_this())) {
+    , files_hash_(std::make_unique<FilesHashTable>(conn_)) {
 }
 
 Database::~Database() {
@@ -42,10 +41,16 @@ Database::~Database() {
 }
 
 std::shared_ptr<FileList> Database::GetBlackList() {
+  if (!blacklist_) {
+    blacklist_ = std::make_shared<FileList>(std::make_unique<BlackListTable>(conn_), shared_from_this());
+  }
   return blacklist_;
 }
 
 std::shared_ptr<FileList> Database::GetWhiteList() {
+  if (!whitelist_) {
+    whitelist_ = std::make_shared<FileList>(std::make_unique<WhiteListTable>(conn_), shared_from_this());
+  }
   return whitelist_;
 }
 

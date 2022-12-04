@@ -4,7 +4,7 @@
 #include <tables/files_hash.hpp>
 #include <tables/files.hpp>
 
-#include <file_fwd.hpp>
+#include <file.hpp>
 #include <process_fwd.hpp>
 
 
@@ -38,10 +38,10 @@ class Database : public std::enable_shared_from_this<Database> {
  private:
   sqlite3* conn_;
 
+  std::unique_ptr<FilesTable> files_;
   std::unique_ptr<ActionsTable> actions_;
   std::unique_ptr<FilesContentTable> files_content_;
   std::unique_ptr<FilesHashTable> files_hash_;
-  std::unique_ptr<FilesTable> files_;
   std::shared_ptr<FileList> blacklist_;
   std::shared_ptr<FileList> whitelist_;
 };

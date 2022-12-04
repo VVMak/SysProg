@@ -14,9 +14,9 @@ constexpr char SQL_CREATE[] = \
 " FOREIGN KEY(bin) REFERENCES files(id),"\
 " FOREIGN KEY(target) REFERENCES files(id)"\
 ");"\
-"CREATE INDEX IF NOT EXISTS bin_idx ON files (bin);"\
-"CREATE INDEX IF NOT EXISTS target_dir_idx ON files (target_dir);"\
-"CREATE INDEX IF NOT EXISTS timepoint_idx ON files (timepoint);";
+"CREATE INDEX IF NOT EXISTS bin_idx ON actions (bin);"\
+"CREATE INDEX IF NOT EXISTS target_dir_idx ON actions (target_dir);"\
+"CREATE INDEX IF NOT EXISTS timepoint_idx ON actions (timepoint);";
 
 constexpr char SQL_INSERT[] = \
 "INSERT INTO actions (bin, target, target_dir, timepoint) VALUES(?, ?, ?, ?);";
