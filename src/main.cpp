@@ -29,20 +29,14 @@ void HandleOpen(int fd, const fanotify_event_metadata* metadata, DatabasePtr& db
   File target(path, db);
   Process p(metadata->pid, db);
 
-  struct fanotify_response response;
   response.fd = metadata->fd;
-  if (target.IsAntivirusDb()) {
-    response.response = (p.HasAccessToDb() ? FAN_ALLOW : FAN_DENY);
-  } else if (p.HasWriteAccess()) {
+  if (p.HasWriteAccess()) {
     if (!db->FileWasSaved(target)) {
       db->SaveFileContent(target);
     }
-    response.response = FAN_ALLOW;
   } else {
-    response.response = FAN_DENY;
     utils::BanProcessAndRestoreFiles(db, p);
   }
-  write(fd, &response, sizeof(response));
 }
 
 void HandleEvents(int fd, DatabasePtr& db) {
@@ -69,7 +63,7 @@ void HandleEvents(int fd, DatabasePtr& db) {
         if (metadata->mask & FAN_CLOSE_WRITE) {
           HandleWrite(metadata, db);
         }
-        if (metadata->mask & FAN_OPEN_PERM || metadata->mask & FAN_OPEN_EXEC_PERM) {
+        if (metadata->mask & FAN_OPEN) {
           HandleOpen(fd, metadata, db);
         }
         close(metadata->fd);
@@ -84,6 +78,9 @@ int main(int argc, char *argv[]) {
     std::cerr << "Usage: " << argv[0] << " MOUNT\n";
     std::exit(EXIT_FAILURE);
   }
+
+  auto db = std::make_shared<Database>("/home/makvv/study/sys_prog/test.db");
+
   std::cout << "Press enter key to terminate." << std::endl;
   int fd = fanotify_init(FAN_CLOEXEC | FAN_CLASS_PRE_CONTENT | FAN_NONBLOCK,
                       O_RDONLY | O_LARGEFILE);
@@ -92,13 +89,11 @@ int main(int argc, char *argv[]) {
     std::exit(EXIT_FAILURE);
   }
   if (fanotify_mark(fd, FAN_MARK_ADD | FAN_MARK_MOUNT,
-                    FAN_OPEN_PERM | FAN_OPEN_EXEC_PERM | FAN_CLOSE_WRITE, AT_FDCWD,
+                    FAN_OPEN | FAN_CLOSE_WRITE, AT_FDCWD,
                     argv[1]) == -1) {
     std::perror("fanotify_mark");
     std::exit(EXIT_FAILURE);
   }
-
-  auto db = std::make_shared<Database>("/home/makvv/study/sys_prog/test.db");
   int poll_num;
   nfds_t nfds;
   pollfd fds[2];
