@@ -2,44 +2,63 @@
 #include <poll.h>
 #include <sys/fanotify.h>
 #include <unistd.h>
+#include <syslog.h>
 
 #include <cassert>
 #include <iostream>
+
+#include <fmt/format.h>
 
 #include <database.hpp>
 #include <file.hpp>
 #include <process.hpp>
 
+#include <settings.hpp>
 #include <utils.hpp>
 
-void HandleWrite(const fanotify_event_metadata* metadata, DatabasePtr& db) {
-  const auto path = std::filesystem::read_symlink("/proc/self/fd/" + std::to_string(metadata->fd)).string();
+
+void HandleWrite(const fanotify_event_metadata* metadata, DatabasePtr& db, const settings::Config& config) {
+  const auto path = utils::GetFilePathByFd(metadata->fd).string();
   File target(path, db);
-  Process p(metadata->pid, db);
 
-  db->AddAction(p, target);
-  if (p.HasWriteAccess()) {
-    return;
-  }
-  utils::BanProcessAndRestoreFiles(db, p);
-}
-
-void HandleOpen(int fd, const fanotify_event_metadata* metadata, DatabasePtr& db) {
-  const auto path = std::filesystem::read_symlink("/proc/self/fd/" + std::to_string(metadata->fd)).string();
-  File target(path, db);
-  Process p(metadata->pid, db);
-
-  response.fd = metadata->fd;
-  if (p.HasWriteAccess()) {
-    if (!db->FileWasSaved(target)) {
-      db->SaveFileContent(target);
+  try {
+    Process p(metadata->pid, db);
+    db->AddAction(p, target);
+    if (p.HasWriteAccess(config)) {
+      return;
     }
-  } else {
     utils::BanProcessAndRestoreFiles(db, p);
+  } catch (const std::runtime_error& e) {
+    syslog(LOG_ERR, "%s", fmt::format(
+        "Can't handle write of process {} in file {}, error: {}",
+        metadata->pid, path, e.what()
+    ).c_str());
   }
 }
 
-void HandleEvents(int fd, DatabasePtr& db) {
+void HandleOpen(int fd, const fanotify_event_metadata* metadata, DatabasePtr& db, const settings::Config& config) {
+  const auto path = utils::GetFilePathByFd(metadata->fd).string();
+  File target(path, db);
+
+  try {
+    Process p(metadata->pid, db);
+
+    if (p.HasWriteAccess(config)) {
+      if (!db->FileWasSaved(target)) {
+        db->SaveFileContent(target);
+      }
+    } else {
+      utils::BanProcessAndRestoreFiles(db, p);
+    }
+  } catch (const std::runtime_error& e) {
+    syslog(LOG_ERR, "%s", fmt::format(
+        "Can't handle write of process {} in file {}, error: {}",
+        metadata->pid, path, e.what()
+    ).c_str());
+  }
+}
+
+void HandleEvents(int fd, DatabasePtr& db, const settings::Config& config) {
   const fanotify_event_metadata* metadata;
   fanotify_event_metadata buf[200];
   int len;
@@ -61,10 +80,10 @@ void HandleEvents(int fd, DatabasePtr& db) {
       }
       if (metadata->fd >= 0) {
         if (metadata->mask & FAN_CLOSE_WRITE) {
-          HandleWrite(metadata, db);
+          HandleWrite(metadata, db, config);
         }
         if (metadata->mask & FAN_OPEN) {
-          HandleOpen(fd, metadata, db);
+          HandleOpen(fd, metadata, db, config);
         }
         close(metadata->fd);
       }
@@ -79,7 +98,10 @@ int main(int argc, char *argv[]) {
     std::exit(EXIT_FAILURE);
   }
 
-  auto db = std::make_shared<Database>("/home/makvv/study/sys_prog/test.db");
+  utils::CreateDefaultFiles();
+  settings::Config config;
+  auto db = std::make_shared<Database>(config.GetDbPath());
+  db->GetWhiteList()->Add(db->GetFileByPath(std::filesystem::read_symlink("/proc/self/exe")));
 
   std::cout << "Press enter key to terminate." << std::endl;
   int fd = fanotify_init(FAN_CLOEXEC | FAN_CLASS_PRE_CONTENT | FAN_NONBLOCK,
@@ -121,7 +143,7 @@ int main(int argc, char *argv[]) {
       }
 
       if (fds[1].revents & POLLIN) {
-        HandleEvents(fd, db);
+        HandleEvents(fd, db, config);
       }
     }
   }

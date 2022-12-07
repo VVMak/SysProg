@@ -73,8 +73,18 @@
     "csignal": "cpp",
     "any": "cpp",
     "future": "cpp",
-    "*.ipp": "cpp"
+    "*.ipp": "cpp",
+    "coroutine": "cpp",
+    "forward_list": "cpp",
+    "regex": "cpp",
+    "source_location": "cpp",
+    "rope": "cpp",
+    "slist": "cpp",
+    "ranges": "cpp",
+    "scoped_allocator": "cpp",
+    "shared_mutex": "cpp",
+    "valarray": "cpp"
   },
   "cmake.configureOnOpen": true,
-  "C_Cpp.default.configurationProvider": "ms-vscode.makefile-tools"
+  "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
 }

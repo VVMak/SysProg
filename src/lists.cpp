@@ -2,11 +2,15 @@
 #include <fmt/format.h>
 
 #include <database.hpp>
+#include <settings.hpp>
+#include <utils.hpp>
 
 
 namespace po = boost::program_options;
 
 int main(int argc, char* argv[]) {
+  utils::CreateDefaultFiles();
+  settings::Config config;
   po::options_description desc("Options");
   desc.add_options()
     ("help,h", "Show help")
@@ -26,7 +30,7 @@ int main(int argc, char* argv[]) {
     std::cout << desc << std::endl;
     return 0;
   }
-  auto db = std::make_shared<Database>("test.db");
+  auto db = std::make_shared<Database>(config.GetDbPath());
   std::shared_ptr<FileList> list, opposite_list;
   auto list_type = vm["list"].as<std::string>();
   if (list_type == "black" || list_type == "b") {

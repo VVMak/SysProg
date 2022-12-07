@@ -1,3 +1,5 @@
+#pragma once
+
 #include <cinttypes>
 #include <chrono>
 #include <filesystem>
